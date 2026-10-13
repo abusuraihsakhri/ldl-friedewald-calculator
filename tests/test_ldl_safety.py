@@ -40,3 +40,21 @@ def test_audit_detects_forged_signature_and_no_external_mutation():
     assert trail.verify_integrity()  # accessor returns a defensive copy
     trail.logs[0]["payload_hash"] = "forged"
     assert not trail.verify_integrity()
+
+
+def test_fastapi_ldl_endpoint_uses_same_calculation():
+    from agents.api import api_ldl, LipidPanel
+    r = api_ldl(LipidPanel(total_cholesterol=200, hdl=50, triglycerides=150,
+                           method="sampson"))
+    assert r["formula"] == "Sampson-NIH"
+    assert r["ldl"] == 123.40
+
+
+def test_csv_critical_flag_parser_rejects_ambiguous_values():
+    from cli import parse_csv_bool, csv_safe
+    assert parse_csv_bool("false") is False
+    assert parse_csv_bool("TRUE") is True
+    with pytest.raises(ValueError):
+        parse_csv_bool("maybe")
+    assert csv_safe("=1+1").startswith("'")
+    assert csv_safe("normal") == "normal"
