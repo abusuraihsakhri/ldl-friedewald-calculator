@@ -26,6 +26,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install fastapi uvicorn pydantic pytest
 
+    - name: Compile Python modules
+      run: python -m compileall -q ldl_calc.py cli.py agents tests
+
     - name: Run Pytest Suite
       run: |
         pytest -v
@@ -38,3 +41,15 @@ jobs:
         assert AuditLogger.verify_integrity() is True
         print('Security & Zero-PHI Audit Passed!')
         "
+
+  browser-calculator:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run browser calculation tests
+        run: node --test web/calculator.test.cjs
+      - name: JavaScript syntax check
+        run: node --check web/calculator.js
