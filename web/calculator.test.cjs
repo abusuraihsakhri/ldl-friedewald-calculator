@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
+const vm = require("node:vm");
 const path = require("node:path");
 const { calculate, normalize } = require("./calculator.js");
 
@@ -36,4 +37,11 @@ test("HTML references local engine, and no fake audit console", () => {
   assert.match(html,/id="lipid-form"/);
   assert.match(html,/id="csv-file"/);
   assert.doesNotMatch(html,/HMAC_SHA256_e83f9a72b941d6c381f9|Air-Gapped Active/);
+});
+
+test("inline browser interaction code parses without syntax errors", () => {
+  const html=fs.readFileSync(path.join(__dirname,"index.html"),"utf8");
+  const scripts=[...html.matchAll(/<script(?:\\s[^>]*)?>([\\s\\S]*?)<\\/script>/g)];
+  assert.equal(scripts.length,1);
+  new vm.Script(scripts[0][1], { filename:"web/index.html inline script" });
 });
