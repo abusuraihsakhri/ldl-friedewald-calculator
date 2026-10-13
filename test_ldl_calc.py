@@ -35,14 +35,13 @@ class TestFriedewaldFormula:
         result = m.calculate_friedewald(total_cholesterol=300, hdl=50, triglycerides=450)
         assert result["ldl"] is None
         assert result["valid"] is False
-        assert "exceed 400" in result["reason"]
+        assert "at or above 400" in result["reason"]
 
     def test_friedewald_boundary_triglycerides(self):
-        """Test at exactly 400 mg/dL triglycerides (should be valid)."""
+        """At 400 mg/dL, Friedewald must not be reported."""
         result = m.calculate_friedewald(total_cholesterol=250, hdl=50, triglycerides=400)
-        assert result["valid"] is True
-        expected_ldl = 250 - 50 - (400 / 5.0)  # = 200 - 80 = 120
-        assert result["ldl"] == expected_ldl
+        assert result["valid"] is False
+        assert result["ldl"] is None
 
     def test_friedewald_zero_triglycerides(self):
         """Test with zero triglycerides."""
@@ -75,47 +74,55 @@ class TestFriedewaldFormula:
             assert "non-negative" in str(e)
 
     def test_friedewald_ldl_never_negative(self):
-        """LDL should be clamped to 0 when calculation yields negative."""
+        """Negative LDL estimates must be withheld, not reported as zero."""
         result = m.calculate_friedewald(total_cholesterol=100, hdl=90, triglycerides=100)
-        # LDL = 100 - 90 - 20 = -10, should be clamped to 0
-        assert result["ldl"] == 0.0
+        assert result["valid"] is False
+        assert result["ldl"] is None
 
 
 # --- Martin-Hopkins Formula Tests ---
 
 class TestMartinHopkinsFormula:
-    """Tests for the Martin-Hopkins LDL calculation formula."""
+    """The unavailable validated lookup table must never be approximated silently."""
 
-    def test_basic_martin_hopkins(self):
-        """Test Martin-Hopkins calculation."""
-        result = m.calculate_martin_hopkins(total_cholesterol=200, hdl=50, triglycerides=150)
-        assert result["valid"] is True
-        assert result["formula"] == "Martin-Hopkins"
-        assert result["ldl"] is not None
+    def test_martin_hopkins_not_misrepresented(self):
+        result = m.calculate_martin_hopkins(200, 50, 150)
+        assert result["valid"] is False
+        assert result["ldl"] is None
+        assert "180-cell" in result["reason"]
 
-    def test_martin_hopkins_high_triglycerides_valid(self):
-        """Martin-Hopkins should be valid even with high triglycerides."""
-        result = m.calculate_martin_hopkins(total_cholesterol=350, hdl=40, triglycerides=450)
-        assert result["valid"] is True
-        assert result["ldl"] is not None
-
-    def test_martin_hopkins_adjustable_factor_low_tg(self):
-        """Test adjustable factor for low triglycerides."""
-        result = m.calculate_martin_hopkins(total_cholesterol=200, hdl=50, triglycerides=100)
-        assert result["adjustable_factor"] == 5.0
-
-    def test_martin_hopkins_adjustable_factor_high_tg(self):
-        """Test adjustable factor for high triglycerides."""
-        result = m.calculate_martin_hopkins(total_cholesterol=300, hdl=40, triglycerides=450)
-        assert result["adjustable_factor"] == 3.0
+    def test_martin_hopkins_high_tg_not_fabricated(self):
+        result = m.calculate_martin_hopkins(350, 40, 450)
+        assert result["valid"] is False
+        assert result["ldl"] is None
 
     def test_martin_hopkins_negative_values_rejected(self):
-        """Negative values should raise ValueError."""
-        try:
-            m.calculate_martin_hopkins(total_cholesterol=-10, hdl=50, triglycerides=100)
-            assert False, "Should have raised ValueError"
-        except ValueError as e:
-            assert "non-negative" in str(e)
+        with __import__("pytest").raises(ValueError):
+            m.calculate_martin_hopkins(-10, 50, 100)
+
+
+class TestSampsonNIH:
+    def test_known_reference_calculations(self):
+        assert m.calculate_sampson(200, 50, 150)["ldl"] == 123.40
+        assert m.calculate_sampson(250, 35, 500)["ldl"] == 125.11
+
+    def test_800_triglycerides_invalid(self):
+        result = m.calculate_sampson(250, 35, 800)
+        assert result["valid"] is False
+        assert result["ldl"] is None
+
+    def test_nonfinite_and_inconsistent_lipids_rejected(self):
+        import pytest
+        for inputs in ((float("nan"), 40, 100), (200, float("inf"), 100),
+                       (200, 40, -1), (100, 120, 60)):
+            with pytest.raises(ValueError):
+                m.calculate_sampson(*inputs)
+
+    def test_meld_na_uses_scaled_meld_before_sodium_adjustment(self):
+        # MELD score of approximately 18.3; sodium 135 adds about 1.4 points.
+        r = m.calculate_meld_na(3, 1.5, 1.5, 135)
+        assert r["valid"]
+        assert 19 < r["meld_na"] < 21
 
 
 # --- Unified Calculator Tests ---
