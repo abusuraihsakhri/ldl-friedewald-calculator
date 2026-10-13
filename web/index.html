@@ -1,236 +1,259 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ldl Friedewald Calculator — Operations Console</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg: #090d16;
-            --card: #111827;
-            --border: #1f293d;
-            --accent: #3b82f6;
-            --accent-glow: rgba(59, 130, 246, 0.25);
-            --text: #f3f4f6;
-            --text-muted: #9ca3af;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --success: #10b981;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            padding: 2rem;
-            min-height: 100vh;
-        }
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        .header-title h1 { font-size: 1.6rem; font-weight: 700; color: #fff; }
-        .header-title p { color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem; }
-        .badge {
-            display: inline-block;
-            padding: 0.3rem 0.8rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            background: var(--accent-glow);
-            color: var(--accent);
-            border: 1px solid var(--accent);
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr 1.2fr;
-            gap: 1.5rem;
-        }
-        .card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-        }
-        .card h2 {
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .form-group { margin-bottom: 1rem; }
-        label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem; }
-        input, select, textarea {
-            width: 100%;
-            padding: 0.65rem 0.9rem;
-            background: #0d1322;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: #fff;
-            font-family: inherit;
-            font-size: 0.9rem;
-        }
-        input:focus, textarea:focus { outline: none; border-color: var(--accent); }
-        .btn {
-            background: var(--accent);
-            color: #fff;
-            border: none;
-            padding: 0.7rem 1.4rem;
-            border-radius: 6px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: 0.2s;
-            width: 100%;
-        }
-        .btn:hover { background: #2563eb; }
-        .terminal {
-            background: #060911;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 1rem;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.85rem;
-            color: #10b981;
-            height: 380px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-        }
-        .metrics-bar {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        .metric-box {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 1rem;
-            text-align: center;
-        }
-        .metric-val { font-size: 1.4rem; font-weight: 700; color: #fff; margin-top: 0.25rem; }
-        .metric-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>LDL-C Calculator | Friedewald & Sampson-NIH</title>
+  <style>
+    :root { color-scheme:light; font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; color:#152337; background:#f3f6fb; }
+    * { box-sizing:border-box }
+    body { margin:0; }
+    main { max-width:1000px; margin:0 auto; padding:2.25rem 1.3rem 3rem; }
+    h1 { font-size:clamp(1.85rem,4vw,2.6rem); letter-spacing:-.04em; line-height:1.14; margin:.4rem 0 .55rem }
+    h2 { font-size:1.15rem; margin:0 0 1rem }
+    p { margin:.4rem 0 1rem }
+    .eyebrow { color:#315baf; font-weight:700; font-size:.75rem; text-transform:uppercase; letter-spacing:.11em }
+    .intro { color:#52637d; max-width:750px }
+    .layout { display:grid; grid-template-columns:minmax(280px, 1fr) minmax(280px,1.08fr); gap:1rem; margin-top:1.4rem }
+    .card { background:white; border:1px solid #dbe3ef; border-radius:14px; padding:1.4rem; box-shadow:0 4px 16px #2536530b }
+    label { font-weight:650; font-size:.86rem; display:block; margin-bottom:.36rem }
+    input, select { font:inherit; width:100%; padding:.65rem .72rem; border:1px solid #afbdd0; border-radius:8px; color:#142237; background:#fff; }
+    input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible { outline:3px solid #75a7ff; outline-offset:2px }
+    .field { margin-bottom:1.05rem }
+    .help, small { font-size:.82rem; color:#52637d }
+    button { cursor:pointer; border:0; border-radius:8px; background:#2359b5; color:white; padding:.78rem 1.15rem; font:inherit; font-weight:700 }
+    button:hover { background:#19458f }
+    button:disabled { opacity:.5; cursor:not-allowed }
+    .secondary { background:#eaf1fb; color:#234878; }
+    .secondary:hover { background:#dbe8f9 }
+    .button-row { display:flex; flex-wrap:wrap; gap:.6rem; margin-top:1rem }
+    .result-grid { display:grid; grid-template-columns:1fr 1fr; gap:.8rem; margin:1rem 0 }
+    .result { border:1px solid #d8e4f2; background:#f8fbff; padding:1rem; border-radius:10px }
+    .result .heading { font-size:.82rem; color:#52637d; font-weight:650 }
+    .result .number { font-size:1.65rem; font-weight:800; letter-spacing:-.03em; margin:.25rem 0 }
+    .result .unit { font-size:.82rem; font-weight:500; color:#52637d }
+    .result.invalid { border-color:#efcb8b; background:#fff9ec }
+    .result.invalid .number { font-size:1.15rem; color:#8c5207; }
+    .message { border-left:3px solid #d6a03e; padding:.65rem .9rem; background:#fff9ec; color:#6e450c; border-radius:4px; margin:.8rem 0 }
+    .ok { border-color:#4b83b3; background:#f0f7ff; color:#284b70 }
+    .error { border-color:#ca3434; background:#fff1f1; color:#8e2525 }
+    .spacer { margin-top:1rem }
+    .wide { margin-top:1rem }
+    .hidden { display:none !important }
+    .summary { font-weight:700; font-size:1rem }
+    .disclaimer { background:#edf2fa; border-radius:10px; padding:1rem; margin-top:1.2rem; font-size:.88rem; color:#3b4e69 }
+    .tablewrap { overflow:auto; max-height:280px; margin-top:1rem }
+    table { border-collapse:collapse; width:100%; font-size:.83rem }
+    th, td { padding:.5rem .6rem; border-bottom:1px solid #dbe3ef; text-align:left; white-space:nowrap }
+    th { background:#f1f5fb; position:sticky; top:0 }
+    footer { margin-top:1.25rem; color:#53617a; font-size:.84rem }
+    a { color:#2055a4 }
+    @media (max-width:740px) { main{padding:1.3rem .85rem} .layout{grid-template-columns:1fr} .card{padding:1.15rem} }
+    @media (max-width:370px) { .result-grid{grid-template-columns:1fr} }
+  </style>
 </head>
 <body>
-
-    <div class="header">
-        <div class="header-title">
-            <h1>Ldl Friedewald Calculator</h1>
-            <p>Domain: Clinical & Cryptographic AI | Standard: CAP / CLSI / NIST Standards | LabMind-Atlas Architecture</p>
+<main>
+  <header>
+    <div class="eyebrow">Clinical calculation reference · Offline browser tool</div>
+    <h1>LDL cholesterol calculator</h1>
+    <p class="intro">Estimate LDL-C using the Friedewald and Sampson-NIH equations. Values are calculated in your browser and are not sent to a server.</p>
+  </header>
+  <div class="layout">
+    <section class="card" aria-labelledby="inputs-title">
+      <h2 id="inputs-title">Lipid panel</h2>
+      <form id="lipid-form">
+        <div class="field">
+          <label for="unit">Units</label>
+          <select id="unit"><option value="mg/dL">mg/dL</option><option value="mmol/L">mmol/L</option></select>
         </div>
-        <div>
-            <span class="badge">Air-Gapped Active</span>
-            <span class="badge" style="background: rgba(16,185,129,0.2); color: #10b981; border-color: #10b981;">Zero-PHI Guard Active</span>
-        </div>
-    </div>
-
-    <div class="metrics-bar">
-        <div class="metric-box">
-            <div class="metric-label">System Status</div>
-            <div class="metric-val" style="color: var(--success);" id="m-status">OPTIMAL</div>
-        </div>
-        <div class="metric-box">
-            <div class="metric-label">Tasks Processed</div>
-            <div class="metric-val" id="m-tasks">142</div>
-        </div>
-        <div class="metric-box">
-            <div class="metric-label">Audit Blocks Signed</div>
-            <div class="metric-val" id="m-audit">142</div>
-        </div>
-        <div class="metric-box">
-            <div class="metric-label">PHI Interceptions</div>
-            <div class="metric-val" style="color: var(--accent);" id="m-phi">0</div>
-        </div>
-    </div>
-
-    <div class="grid">
-        <div class="card">
-            <h2>⚙️ Dispatch Distributed Component Audit</h2>
-            <div class="form-group">
-                <label>Task / Sample ID</label>
-                <input type="text" id="task_id" value="TASK-2026-LIVE-01">
-            </div>
-            <div class="form-group">
-                <label>Target Identifier</label>
-                <input type="text" id="target_id" value="SPECIMEN-ALPHA-77">
-            </div>
-            <div class="form-group">
-                <label>Primary Measurement / Value</label>
-                <input type="number" id="primary_metric" value="29.4" step="0.1">
-            </div>
-            <div class="form-group">
-                <label>Secondary Metric / Kinetic Index</label>
-                <input type="number" id="secondary_metric" value="14.8" step="0.1">
-            </div>
-            <div class="form-group">
-                <label>Status / Phenotype Descriptor</label>
-                <input type="text" id="status_descriptor" value="DISCORDANT_ANOMALY">
-            </div>
-            <div class="form-group">
-                <label><input type="checkbox" id="is_critical" checked> Trigger Emergency / Critical Flag</label>
-            </div>
-            <button class="btn" onclick="runAudit()">Execute Distributed Component Audit</button>
-        </div>
-
-        <div class="card">
-            <h2>📊 Real-Time Consensus Dossier & Audit Log</h2>
-            <div class="terminal" id="outputConsole">// Ldl Friedewald Calculator Operations Console Ready
-// Connection established with Air-Gapped Supervisor
-// Cryptographic HMAC-SHA256 audit ledger loaded.
-// Ready for live task payload dispatch...</div>
-        </div>
-    </div>
-
-    <script>
-        async function runAudit() {
-            const consoleEl = document.getElementById('outputConsole');
-            consoleEl.innerText = "// Dispatching task across specialized workers...
-// Invoking InvariantQCWorker, SafetyEscalationWorker, ProtocolWorker...";
-
-            const payload = {
-                task_id: document.getElementById('task_id').value,
-                target_identifier: document.getElementById('target_id').value,
-                primary_metric: parseFloat(document.getElementById('primary_metric').value),
-                secondary_metric: parseFloat(document.getElementById('secondary_metric').value),
-                status_descriptor: document.getElementById('status_descriptor').value,
-                is_critical_flag: document.getElementById('is_critical').checked
-            };
-
-            try {
-                const res = await fetch('/api/audit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-                consoleEl.innerText = JSON.stringify(data, null, 2);
-                document.getElementById('m-tasks').innerText = parseInt(document.getElementById('m-tasks').innerText) + 1;
-                document.getElementById('m-audit').innerText = parseInt(document.getElementById('m-audit').innerText) + 1;
-            } catch (err) {
-                consoleEl.innerText = "// Offline / Simulation Output:\n" + JSON.stringify({
-                    dossier_id: "DOSSIER-SIM-" + Math.floor(Math.random()*10000),
-                    system: "ldl-friedewald-calculator",
-                    domain: "Clinical & Cryptographic AI",
-                    task_id: payload.task_id,
-                    overall_urgency: payload.is_critical_flag ? "CRITICAL_STAT_PANIC" : "ELEVATED_RISK",
-                    integrity_status: "DISCORDANT_ANOMALY",
-                    alerts: [
-                        { worker: "InvariantQCWorker", alert: "Primary metric exceeds upper reference bound" },
-                        { worker: "SafetyEscalationWorker", alert: "Critical emergency interlock flag active" }
-                    ],
-                    audit_hash: "HMAC_SHA256_e83f9a72b941d6c381f9"
-                }, null, 2);
-            }
-        }
-    </script>
+        <div class="field"><label for="tc">Total cholesterol</label><input id="tc" name="tc" type="number" min="0" step="any" inputmode="decimal" required value="200"></div>
+        <div class="field"><label for="hdl">HDL cholesterol</label><input id="hdl" name="hdl" type="number" min="0" step="any" inputmode="decimal" required value="50"></div>
+        <div class="field"><label for="tg">Triglycerides</label><input id="tg" name="tg" type="number" min="0" step="any" inputmode="decimal" required value="150"></div>
+        <button type="submit">Calculate LDL-C</button>
+        <div id="error" class="message error hidden" role="alert"></div>
+      </form>
+      <div class="disclaimer"><strong>Interpretation:</strong> Calculated LDL-C is an estimate, not a direct measurement. Results need clinical context and appropriate laboratory validation. Do not enter patient identifiers.</div>
+    </section>
+    <section class="card" aria-labelledby="results-title">
+      <h2 id="results-title">Results</h2>
+      <div id="results" aria-live="polite">
+        <p class="help">Enter a lipid panel and select Calculate LDL-C.</p>
+      </div>
+      <div class="button-row"><button type="button" class="secondary" id="copy" disabled>Copy summary</button></div>
+      <p class="help spacer">Friedewald is not reportable at triglycerides ≥400 mg/dL. Sampson-NIH was developed for triglycerides below 800 mg/dL. A result below zero is withheld rather than clamped to zero.</p>
+    </section>
+  </div>
+  <section class="card wide" aria-labelledby="batch-title">
+    <h2 id="batch-title">CSV batch processing</h2>
+    <p class="help">Optional: choose a CSV file with <code>total_cholesterol</code>, <code>hdl</code>, and <code>triglycerides</code> columns in <strong>mg/dL</strong>. Each row is processed locally. CSV output includes both estimates, validity flags, and errors.</p>
+    <div class="field"><label for="csv-file">CSV file</label><input type="file" id="csv-file" accept=".csv,text/csv"></div>
+    <div class="button-row"><button type="button" id="process">Process CSV</button><button type="button" class="secondary" id="download" disabled>Download results CSV</button></div>
+    <div id="batch-status" role="status" class="help spacer" aria-live="polite"></div>
+    <div class="tablewrap" id="preview"></div>
+  </section>
+  <section class="disclaimer">
+    <strong>Methodology:</strong> Friedewald: TC − HDL-C − TG/5. Sampson-NIH (2020): TC/0.948 − HDL-C/0.971 − (TG/8.56 + TG × non-HDL-C/2140 − TG²/16100) − 9.44. The original Martin/Hopkins method requires a separate 180-cell factor table; a triglyceride-only shortcut is not that method.
+    <p><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC7240357/" rel="noopener noreferrer" target="_blank">Sampson et al. (2020)</a> · <a href="https://doi.org/10.1161/CIR.0000000000001423" rel="noopener noreferrer" target="_blank">2026 dyslipidemia guideline</a></p>
+  </section>
+  <footer>Educational and research use · No uploads, analytics, accounts, or browser storage required.</footer>
+</main>
+<script src="./calculator.js"></script>
+<script>
+(function () {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const form = $("lipid-form");
+  const number = (n, unit) => n.toFixed(unit === "mg/dL" ? 2 : 3);
+  let summary = "";
+  let csvText = "";
+  function textCell(parent, tag, content) {
+    const node = document.createElement(tag);
+    node.textContent = String(content);
+    parent.appendChild(node);
+    return node;
+  }
+  function resultCard(title, item, unit) {
+    const div = document.createElement("div");
+    div.className = "result" + (item.reason ? " invalid" : "");
+    textCell(div, "div", title).className = "heading";
+    const val = textCell(div, "div", item.reason ? "Not reportable" : number(item.value, unit));
+    val.className = "number";
+    textCell(div, "div", item.reason || unit).className = item.reason ? "help" : "unit";
+    return div;
+  }
+  function render(result) {
+    const host = $("results");
+    host.replaceChildren();
+    textCell(host, "div", "Non-HDL-C: " + number(result.nonHdl, result.unit) + " " + result.unit).className = "summary";
+    const grid = document.createElement("div");
+    grid.className = "result-grid";
+    grid.appendChild(resultCard("Friedewald", result.friedewald, result.unit));
+    grid.appendChild(resultCard("Sampson-NIH", result.sampson, result.unit));
+    host.appendChild(grid);
+    summary = [
+      "LDL-C (" + result.unit + ")",
+      "Non-HDL-C: " + number(result.nonHdl, result.unit),
+      "Friedewald: " + (result.friedewald.reason || number(result.friedewald.value, result.unit)),
+      "Sampson-NIH: " + (result.sampson.reason || number(result.sampson.value, result.unit))
+    ].join("\n");
+    $("copy").disabled = false;
+  }
+  form.addEventListener("submit", ev => {
+    ev.preventDefault();
+    $("error").classList.add("hidden");
+    try {
+      render(LDLCalculator.calculate($("tc").value, $("hdl").value, $("tg").value, $("unit").value));
+    } catch (e) {
+      $("results").replaceChildren();
+      $("copy").disabled = true;
+      $("error").textContent = e.message;
+      $("error").classList.remove("hidden");
+    }
+  });
+  let previousUnit = "mg/dL";
+  $("unit").addEventListener("change", () => {
+    const unit = $("unit").value;
+    const forward = previousUnit === "mg/dL" && unit === "mmol/L";
+    for (const [id, factor] of [["tc",38.67],["hdl",38.67],["tg",88.57]]) {
+      const control = $(id);
+      if (control.value.trim() !== "" && Number.isFinite(Number(control.value))) {
+        control.value = (forward ? Number(control.value) / factor : Number(control.value) * factor).toFixed(forward ? 4 : 2);
+      }
+    }
+    previousUnit = unit;
+    form.requestSubmit();
+  });
+  $("copy").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(summary);
+      $("copy").textContent = "Copied";
+    } catch {
+      $("copy").textContent = "Copy unavailable";
+    }
+  });
+  function parseCsv(str) {
+    const rows = []; let row = [], cell = "", quoted = false;
+    str = str.replace(/^\uFEFF/, "");
+    for (let i=0; i<str.length; i++) {
+      const c = str[i];
+      if (quoted) {
+        if (c === '"') { if (str[i+1] === '"') { cell += '"'; i++; } else quoted = false; }
+        else cell += c;
+      } else if (c === '"' && cell.length === 0) quoted = true;
+      else if (c === ",") { row.push(cell); cell = ""; }
+      else if (c === "\n" || c === "\r") {
+        if (c === "\r" && str[i+1] === "\n") i++;
+        row.push(cell); cell = "";
+        if (row.some(v => v.trim() !== "")) rows.push(row);
+        row = [];
+      } else cell += c;
+    }
+    if (quoted) throw new Error("Malformed CSV: unterminated quoted field.");
+    row.push(cell);
+    if (row.some(v => v.trim() !== "")) rows.push(row);
+    return rows;
+  }
+  function encodeCsv(fields) {
+    return fields.map(value => {
+      let v = String(value ?? "");
+      // Spreadsheet applications execute leading formula characters on CSV import.
+      if (/^[\s]*[=+\-@\t\r]/.test(v)) v = "'" + v;
+      return '"' + v.replace(/"/g, '""') + '"';
+    }).join(",");
+  }
+  $("process").addEventListener("click", async () => {
+    csvText = ""; $("download").disabled = true; $("preview").replaceChildren();
+    const file = $("csv-file").files[0];
+    if (!file) { $("batch-status").textContent = "Choose a CSV file first."; return; }
+    if (file.size > 5 * 1024 * 1024) { $("batch-status").textContent = "CSV file exceeds the 5 MB limit."; return; }
+    try {
+      const parsed = parseCsv(await file.text());
+      if (!parsed.length) throw new Error("The CSV contains no header.");
+      const header = parsed.shift().map(v => v.trim());
+      const columns = ["total_cholesterol", "hdl", "triglycerides"];
+      const indices = columns.map(k => header.indexOf(k));
+      if (indices.some(i => i < 0)) throw new Error("Required columns: " + columns.join(", "));
+      if (new Set(header).size !== header.length) throw new Error("Duplicate CSV headers are not supported.");
+      const extras = ["friedewald_ldl", "friedewald_valid", "sampson_ldl", "sampson_valid", "non_hdl", "error"];
+      const output = [header.concat(extras)];
+      let passed = 0;
+      for (const row of parsed) {
+        let ext;
+        try {
+          const r = LDLCalculator.calculate(...indices.map(i => row[i]), "mg/dL");
+          ext = [r.friedewald.value?.toFixed(2) ?? "", String(!r.friedewald.reason),
+                 r.sampson.value?.toFixed(2) ?? "", String(!r.sampson.reason), r.nonHdl.toFixed(2),
+                 [r.friedewald.reason, r.sampson.reason].filter(Boolean).join("; ")];
+          if (!r.friedewald.reason || !r.sampson.reason) passed++;
+        } catch (e) { ext = ["", "false", "", "false", "", e.message]; }
+        output.push(header.map((_,i) => row[i] ?? "").concat(ext));
+      }
+      csvText = output.map(encodeCsv).join("\r\n") + "\r\n";
+      $("download").disabled = false;
+      $("batch-status").textContent = parsed.length + " records processed; " + passed + " with at least one reportable estimate.";
+      const table = document.createElement("table");
+      const head = document.createElement("tr");
+      output[0].forEach(s => textCell(head,"th",s));
+      table.appendChild(head);
+      output.slice(1,6).forEach(row => {
+        const tr=document.createElement("tr");
+        row.forEach(s=>textCell(tr,"td",s));
+        table.appendChild(tr);
+      });
+      $("preview").appendChild(table);
+    } catch (e) { $("batch-status").textContent = "Unable to process CSV: " + e.message; }
+  });
+  $("download").addEventListener("click", () => {
+    if (!csvText) return;
+    const url = URL.createObjectURL(new Blob([csvText],{type:"text/csv;charset=utf-8"}));
+    const link = document.createElement("a");
+    link.href = url; link.download = "ldl-results.csv"; document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  form.requestSubmit();
+})();
+</script>
 </body>
 </html>

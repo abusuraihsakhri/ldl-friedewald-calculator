@@ -1,164 +1,93 @@
-# LDL Friedewald & Martin-Hopkins Calculator
+# LDL-C Calculator — Friedewald & Sampson-NIH
 
-> **Domain:** Clinical Decision Support & Biomedical Computing  
-> **Language:** Python 3.10+  
-> **Dependencies:** Stdlib only (core calculator)
+A lipid calculation tool for single panels and batch CSV files. Includes a **fully offline browser application**, a standard-library Python CLI, and an optional FastAPI service.
 
-<div align="center">
+The repository also retains legacy non-LDL utilities and audit simulation commands for compatibility. Their outputs are not substitutes for separately validated clinical tools.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
+## Browser application
 
-</div>
+Open `web/index.html` in a modern browser. No installation, login, backend, telemetry, or network connection is required for calculations. The page supports:
 
----
+- Friedewald and Sampson-NIH LDL-C estimates, with validity warnings
+- Total, HDL, and triglyceride inputs in mg/dL or mmol/L
+- Non-HDL cholesterol and copyable summaries
+- Local CSV processing, preview, and downloadable results (CSV inputs in **mg/dL**)
 
-## 📖 What It Does
+**Privacy:** Lipid values and uploaded CSV files are processed within the browser. Files are not uploaded or persisted by the application. Do not enter patient identifiers. The standalone FastAPI service is separate and has its own network exposure.
 
-A clinical calculator for LDL cholesterol using two validated formulas:
+For local HTTP serving:
 
-- **Friedewald Formula:** LDL = Total Cholesterol - HDL - (Triglycerides / 5)
-- **Martin-Hopkins Formula:** LDL = Total Cholesterol - HDL - (Triglycerides / adjustable_factor)
-
-The Friedewald formula is valid only when triglycerides ≤ 400 mg/dL. The Martin-Hopkins formula uses an adjustable factor for more accurate results at higher triglyceride levels.
-
-Also supports additional clinical calculations: MELD-Na, QTc (Bazett), BMI z-score, HbA1c conversion, and APRI/FIB-4.
-
----
-
-## ⚙️ Key Features
-
-### Core LDL Calculations
-- **`calculate_friedewald(tc, hdl, tg)`** — Friedewald formula with triglyceride validity check
-- **`calculate_martin_hopkins(tc, hdl, tg)`** — Martin-Hopkins with adjustable factor
-- **`calculate_ldl(tc, hdl, tg, method)`** — Unified interface for both methods
-
-### Additional Clinical Calculations
-- **`calculate_meld_na()`** — MELD-Na score for liver disease severity
-- **`calculate_qtc()`** — QTc interval (Bazett's formula)
-- **`calculate_bmi_z()`** — BMI with z-score approximation
-- **`convert_hba1c()`** — HbA1c ↔ estimated average glucose
-- **`calculate_apri_fib4()`** — APRI and FIB-4 liver fibrosis scores
-
-### Batch Processing
-- **`process_csv(input, output)`** — Process CSV files with lab data
-- **`assess_row(row)`** — Auto-detect calculation type from input fields
-
----
-
-## 📐 Mathematical Formulations
-
-### Friedewald Formula
-```
-LDL = Total Cholesterol - HDL - (Triglycerides / 5)
-```
-Valid for triglycerides ≤ 400 mg/dL. All values in mg/dL.
-
-### Martin-Hopkins Formula
-```
-LDL = Total Cholesterol - HDL - (Triglycerides / adjustable_factor)
-```
-Uses adjustable factor based on triglyceride level:
-- TG < 150: factor = 5.0
-- TG < 200: factor = 4.5
-- TG < 300: factor = 4.0
-- TG < 400: factor = 3.5
-- TG ≥ 400: factor = 3.0
-
----
-
-## 💻 Usage
-
-### Single Calculation
 ```bash
-# Friedewald (default)
+python -m http.server 8000 --directory web
+# Open http://localhost:8000/
+```
+
+GitHub Pages publishing is configured through `.github/workflows/pages.yml`. A live URL should be used only after deployment is enabled and verified.
+
+## Calculation methods and limits
+
+All Python function inputs and results are in **mg/dL**, unless otherwise specified.
+
+| Method | Calculation | Reporting limit |
+| --- | --- | --- |
+| Friedewald | LDL-C = TC − HDL-C − TG/5 | TG **below** 400 mg/dL |
+| Sampson-NIH (2020) | TC/0.948 − HDL/0.971 − (TG/8.56 + TG×non-HDL/2140 − TG²/16100) − 9.44 | TG **below** 800 mg/dL |
+
+Non-HDL-C = TC − HDL-C. Non-finite, negative, and inconsistent cholesterol measurements are rejected. Negative LDL-C predictions are withheld rather than set to zero.
+
+The original **Martin/Hopkins** method requires a validated **180-cell lookup table** indexed by triglycerides and non-HDL-C. The former implementation used five TG-only factors; this is *not* Martin/Hopkins. To prevent misreporting, the legacy `calculate_martin_hopkins()` and `method="martin-hopkins"` pathways now return `valid: false`, `ldl: null` and a reason. Use Sampson-NIH for a supported alternative.
+
+Calculated LDL-C is an **estimate**, not a direct measurement. The accuracy depends on the population and lipid profile, particularly at low LDL-C and high triglycerides. This is an educational/research reference, not a validated diagnostic device.
+
+**References:** [Sampson et al., JAMA Cardiology (2020)](https://doi.org/10.1001/jamacardio.2020.0013) · [2026 ACC/AHA Multisociety Dyslipidemia Guideline](https://doi.org/10.1161/CIR.0000000000001423).
+
+## Python CLI
+
+Python 3.10+; no dependencies for `ldl_calc.py` itself.
+
+```bash
 python ldl_calc.py single --total-cholesterol 200 --hdl 50 --triglycerides 150
-
-# Martin-Hopkins
-python ldl_calc.py single --total-cholesterol 200 --hdl 50 --triglycerides 150 --method martin-hopkins
-
-# JSON input
-python ldl_calc.py single --json '{"total_cholesterol": 200, "hdl": 50, "triglycerides": 150}'
+python ldl_calc.py single --total-cholesterol 200 --hdl 50 --triglycerides 150 --method sampson
+python ldl_calc.py batch --input sample.csv --output results.csv
 ```
 
-### Batch CSV Processing
-```bash
-python ldl_calc.py batch --input lab_results.csv --output results.csv
-```
+Batch CSV headers: `total_cholesterol,hdl,triglycerides`, optionally `method` and other columns. Legacy calculations for MELD-Na, QTc, BMI, HbA1c, and APRI/FIB-4 remain in this file but require independent clinical validation before use in patient care.
 
-### CSV Input Format
-| Field | Description | Unit |
-|:------|:------------|:-----|
-| total_cholesterol | Total cholesterol | mg/dL |
-| hdl | HDL cholesterol | mg/dL |
-| triglycerides | Triglycerides | mg/dL |
-
----
-
-## 🧪 Testing
-
-Run the full test suite:
-```bash
-pytest -v
-```
-
-Run only core calculator tests:
-```bash
-pytest test_ldl_calc.py -v
-```
-
----
-
-## 🐳 Docker Deployment
+## API and Docker
 
 ```bash
-docker build -t ldl-friedewald-calculator .
-docker run -p 8000:8000 ldl-friedewald-calculator
+python -m pip install "fastapi>=0.115,<1" "uvicorn>=0.30,<1" "pydantic>=2,<3"
+python cli.py serve --host 127.0.0.1 --port 8000
+# UI: http://127.0.0.1:8000/
+# Interactive API documentation: http://127.0.0.1:8000/docs
 ```
 
-Or with docker-compose:
+`POST /api/ldl` accepts:
+
+```json
+{"total_cholesterol":200,"hdl":50,"triglycerides":150,"method":"sampson"}
+```
+
+It returns estimated LDL-C, formula, validity flag, and reason when invalid. Existing legacy audit endpoints remain available; they demonstrate a mock supervisor rather than clinical decision support. The PHI regex guard is not a comprehensive de-identification solution; do not transmit patient data to those endpoints.
+
+Docker can also run the API and browser UI:
+
 ```bash
-docker-compose up
+docker build -t ldl-calculator .
+docker run --rm -p 8000:8000 ldl-calculator
 ```
 
----
+## Testing
 
-## 🛡️ Security
-
-- Input validation on all numeric parameters
-- Path traversal protection for file operations
-- File path validation prevents null byte injection
-- CSV processing validates file existence and prevents self-overwrite
-
----
-
-## 📁 Project Structure
-
-```
-ldl-friedewald-calculator/
-├── ldl_calc.py           # Core calculator module
-├── cli.py                # CLI interface (enterprise features)
-├── enrichment.py         # Enrichment feature suite
-├── simulator.py          # High-throughput simulation
-├── test_ldl_calc.py      # Core calculator tests
-├── tests/                # Additional test suites
-│   ├── test_enrichment.py
-│   └── test_ldl_friedewald_calculator.py
-├── agents/               # Enterprise agent framework
-│   ├── base.py           # Security, PHI guard, audit trail
-│   ├── models.py         # Pydantic data models
-│   ├── supervisor.py     # Multi-agent orchestrator
-│   ├── workers.py        # Specialized calculation workers
-│   └── api.py            # FastAPI REST endpoints
-├── web/index.html        # Web operations console
-├── Dockerfile
-├── docker-compose.yml
-├── sample.csv            # Example input data
-└── benchmark_dataset.json
+```bash
+python -m pip install pytest fastapi uvicorn pydantic
+python -m pytest -q
+node --test web/calculator.test.cjs  # Node.js 22+
+node --check web/calculator.js
 ```
 
----
+GitHub Actions runs Python tests across Python 3.10–3.12 and browser-engine tests with Node.js 22.
 
-## 📄 License
+## Technology and license
 
-MIT License - see [LICENSE](LICENSE) for details.
+Python 3.10+, FastAPI/Pydantic for the optional server, and dependency-free HTML/CSS/JavaScript for the static app. The browser app targets current Chromium, Firefox, and Safari versions. License: [MIT](LICENSE).

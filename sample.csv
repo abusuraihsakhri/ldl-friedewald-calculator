@@ -1,3 +1,4 @@
-id,value,qty
-A,10,2
-B,20,3
+id,total_cholesterol,hdl,triglycerides,method
+A,200,50,150,friedewald
+B,250,35,500,sampson
+C,180,60,400,friedewald

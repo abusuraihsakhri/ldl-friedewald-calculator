@@ -5,11 +5,30 @@ import argparse
 import csv
 import json
 import sys
+import re
 from agents.models import SystemTaskPayload
 from agents.supervisor import SystemSupervisor
 from agents.base import AuditLogger
 
 supervisor = SystemSupervisor(model_provider="mock")
+
+
+def parse_csv_bool(value):
+    """Interpret CSV flags explicitly; bool("false") is incorrectly True."""
+    value = str(value).strip().lower()
+    if value in ("1", "true", "yes", "y"):
+        return True
+    if value in ("0", "false", "no", "n", ""):
+        return False
+    raise ValueError(f"Invalid boolean flag: {value!r}")
+
+
+def csv_safe(value):
+    """Prevent spreadsheet formula execution when exporting untrusted cells."""
+    if isinstance(value, str) and re.match(r"^\s*[=+\-@\t\r]", value):
+        return "'" + value
+    return value
+
 
 
 def main(argv=None):
@@ -85,7 +104,7 @@ def main(argv=None):
             fieldnames = list(reader.fieldnames or [])
             rows = list(reader)
 
-        out_fields = fieldnames + ["overall_urgency", "integrity_status", "total_alerts", "audit_hash"]
+        out_fields = list(dict.fromkeys(fieldnames + ["overall_urgency", "integrity_status", "total_alerts", "audit_hash"]))
         out_rows = []
         for r in rows:
             payload = SystemTaskPayload(
@@ -94,7 +113,7 @@ def main(argv=None):
                 primary_metric=float(r.get("primary_metric", 15.0)),
                 secondary_metric=float(r.get("secondary_metric", 5.0)),
                 status_descriptor=r.get("status_descriptor", "NOMINAL"),
-                is_critical_flag=bool(r.get("is_critical_flag", False)),
+                is_critical_flag=parse_csv_bool(r.get("is_critical_flag", False)),
             )
             dossier = supervisor.process_task(payload)
             row_dict = dict(r)
@@ -107,7 +126,7 @@ def main(argv=None):
         with open(args.output, mode="w", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=out_fields)
             writer.writeheader()
-            writer.writerows(out_rows)
+            writer.writerows({k: csv_safe(v) for k, v in item.items()} for item in out_rows)
         print(f"Processed {len(out_rows)} records -> {args.output}")
         return 0
 

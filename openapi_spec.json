@@ -1,9 +1,9 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Ldl Friedewald Calculator API",
-    "description": "Enterprise Distributed Component Platform (Clinical & Cryptographic AI) adhering to CAP / CLSI / NIST Standards.",
-    "version": "3.0.0-ENTERPRISE",
+    "title": "LDL-C Calculator API",
+    "description": "LDL-C equations plus legacy mock audit endpoints",
+    "version": "1.0.0",
     "contact": {
       "name": "Dr. Abu Suraih Sakhri",
       "url": "https://github.com/abusuraihsakhri"
@@ -15,24 +15,24 @@
         "summary": "Health and metadata check",
         "responses": {
           "200": {
-            "description": "System optimal"
+            "description": "Basic service health"
           }
         }
       }
     },
     "/metrics": {
       "get": {
-        "summary": "Prometheus operational metrics",
+        "summary": "Legacy in-memory JSON counters",
         "responses": {
           "200": {
-            "description": "Prometheus text metrics"
+            "description": "JSON metrics"
           }
         }
       }
     },
     "/api/audit": {
       "post": {
-        "summary": "Dispatch task payload across specialized workers",
+        "summary": "Legacy demonstration-only audit supervisor",
         "requestBody": {
           "content": {
             "application/json": {
@@ -76,7 +76,7 @@
     },
     "/api/chat": {
       "post": {
-        "summary": "Air-gapped supervisory conversational assistant",
+        "summary": "Mock supervisory query (not a verified clinical interpretation)",
         "requestBody": {
           "content": {
             "application/json": {
@@ -107,6 +107,57 @@
         "responses": {
           "200": {
             "description": "Cryptographic audit trail"
+          }
+        }
+      }
+    },
+    "/api/ldl": {
+      "post": {
+        "summary": "Estimate LDL-C with validity flags (mg/dL)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "total_cholesterol",
+                  "hdl",
+                  "triglycerides"
+                ],
+                "properties": {
+                  "total_cholesterol": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "hdl": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "triglycerides": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "friedewald",
+                      "sampson",
+                      "martin-hopkins"
+                    ],
+                    "default": "friedewald"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "LDL-C, formula, validity, and reason if not reportable"
+          },
+          "422": {
+            "description": "Invalid input panel or method"
           }
         }
       }
