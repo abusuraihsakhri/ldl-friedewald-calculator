@@ -499,6 +499,13 @@ def calculate_apri_fib4(ast_u_l: Any, alt_u_l: Any = None,
 
 # --- CSV Processing ---
 
+def _spreadsheet_safe(value: Any) -> Any:
+    """Escape values with leading spreadsheet formula tokens on CSV export."""
+    if isinstance(value, str) and value.lstrip().startswith(("=", "+", "-", "@")):
+        return "'" + value
+    return value
+
+
 def process_csv(inp: str, out: str) -> List[Dict[str, Any]]:
     """
     Process a CSV file of lab data and calculate results for each row.
@@ -519,7 +526,7 @@ def process_csv(inp: str, out: str) -> List[Dict[str, Any]]:
     out_path = _validate_file_path(out, must_exist=False)
 
     # Prevent overwriting input with output
-    if inp_path == out_path:
+    if inp_path == out_path or (os.path.exists(out_path) and os.path.samefile(inp_path, out_path)):
         raise ValueError("Input and output paths must be different")
 
     with open(inp_path, newline="", encoding="utf-8-sig") as f:
@@ -543,7 +550,7 @@ def process_csv(inp: str, out: str) -> List[Dict[str, Any]]:
     with open(out_path, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=list(fieldnames) + extra)
         w.writeheader()
-        w.writerows(results)
+        w.writerows({k: _spreadsheet_safe(v) for k, v in row.items()} for row in results)
 
     return results
 
