@@ -2,8 +2,11 @@
 FastAPI REST API Server for Ldl Friedewald Calculator.
 """
 from typing import Dict, Any, List
+from pathlib import Path
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
+from ldl_calc import calculate_ldl
 from .base import AuditLogger, PHIGuard
 from .models import SystemTaskPayload, ConsensusDossier
 from .supervisor import SystemSupervisor
@@ -12,8 +15,8 @@ supervisor = SystemSupervisor(model_provider="mock")
 
 app = FastAPI(
     title="Ldl Friedewald Calculator API",
-    description="Enterprise Distributed Component Platform (Clinical & Biomedical AI)",
-    version="3.0.0-ENTERPRISE",
+    description="Lipid estimate reference API with optional legacy audit endpoints",
+    version="1.0.0",
 )
 
 
@@ -21,9 +24,16 @@ class ChatRequest(BaseModel):
     query: str
 
 
+class LipidPanel(BaseModel):
+    total_cholesterol: float = Field(ge=0, allow_inf_nan=False)
+    hdl: float = Field(ge=0, allow_inf_nan=False)
+    triglycerides: float = Field(ge=0, allow_inf_nan=False)
+    method: str = "friedewald"
+
+
 @app.get("/health")
 def health():
-    return {"status": "HEALTHY", "service": "ldl-friedewald-calculator", "domain": "Clinical & Biomedical AI", "standard": "CAP / CLSI / ISO Standards", "version": "3.0.0-ENTERPRISE"}
+    return {"status": "ok", "service": "ldl-friedewald-calculator"}
 
 
 @app.get("/metrics")
@@ -31,7 +41,7 @@ def metrics():
     return {
         "dossiers_processed_total": len(supervisor.dossier_registry),
         "audit_blocks_total": len(AuditLogger.get_trail()),
-        "system_status": "NOMINAL_OPTIMAL"
+        "system_status": "running"
     }
 
 
@@ -53,3 +63,18 @@ def api_chat(req: ChatRequest):
 @app.get("/api/audit/logs")
 def api_audit_logs():
     return {"audit_trail": AuditLogger.get_trail(), "verified": AuditLogger.verify_integrity()}
+
+
+@app.post("/api/ldl")
+def api_ldl(panel: LipidPanel):
+    """Compute a lipid estimate; invalid clinical ranges return valid=false."""
+    try:
+        return calculate_ldl(panel.total_cholesterol, panel.hdl,
+                             panel.triglycerides, panel.method)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+# Register last so API and health routes retain precedence.
+app.mount("/", StaticFiles(directory=Path(__file__).resolve().parent.parent / "web",
+                           html=True), name="web")
