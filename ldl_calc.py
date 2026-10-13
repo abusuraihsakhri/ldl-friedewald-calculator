@@ -22,88 +22,91 @@ from typing import Any, Dict, List, Optional
 
 # --- Core LDL Calculations ---
 
+def _validate_lipids(total_cholesterol: float, hdl: float, triglycerides: float):
+    """Validate numeric lipid inputs in mg/dL, including physiological consistency."""
+    values = []
+    for name, value in (("total_cholesterol", total_cholesterol),
+                        ("hdl", hdl), ("triglycerides", triglycerides)):
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError, OverflowError):
+            raise ValueError(f"{name} must be a finite non-negative number") from None
+        if not math.isfinite(numeric) or numeric < 0:
+            raise ValueError(f"{name} must be a finite non-negative number")
+        values.append(numeric)
+    tc, hdl_c, tg = values
+    if hdl_c > tc:
+        raise ValueError("HDL cholesterol cannot exceed total cholesterol")
+    return tc, hdl_c, tg
+
+
 def calculate_friedewald(total_cholesterol: float, hdl: float, triglycerides: float) -> Dict[str, Any]:
-    """
-    Calculate LDL using the Friedewald formula.
-
-    LDL = Total Cholesterol - HDL - (Triglycerides / 5)
-
-    Valid only when triglycerides <= 400 mg/dL.
-    All values should be in mg/dL.
-
-    Args:
-        total_cholesterol: Total cholesterol in mg/dL
-        hdl: HDL cholesterol in mg/dL
-        triglycerides: Triglycerides in mg/dL
-
-    Returns:
-        Dictionary with LDL result and metadata
-    """
-    if triglycerides < 0 or total_cholesterol < 0 or hdl < 0:
-        raise ValueError("Cholesterol and triglyceride values must be non-negative")
-
-    valid = triglycerides <= 400.0
-    ldl = None
-    if valid:
-        ldl = total_cholesterol - hdl - (triglycerides / 5.0)
-        ldl = round(max(ldl, 0.0), 2)  # LDL cannot be negative
-
+    """Estimate LDL-C by Friedewald. Inputs and output are in mg/dL."""
+    tc, hdl_c, tg = _validate_lipids(total_cholesterol, hdl, triglycerides)
+    non_hdl = tc - hdl_c
+    raw = non_hdl - tg / 5.0
+    if tg >= 400:
+        reason = "Triglycerides at or above 400 mg/dL: Friedewald is not valid"
+    elif raw < 0:
+        reason = "The equation produces a negative LDL-C estimate; do not report as zero"
+    else:
+        reason = None
     return {
-        "ldl": ldl,
+        "ldl": round(raw, 2) if reason is None else None,
         "formula": "Friedewald",
-        "valid": valid,
-        "reason": None if valid else "Triglycerides exceed 400 mg/dL - Friedewald formula not valid",
-        "total_cholesterol": total_cholesterol,
-        "hdl": hdl,
-        "triglycerides": triglycerides,
+        "valid": reason is None,
+        "reason": reason,
+        "non_hdl": round(non_hdl, 2),
+        "total_cholesterol": tc,
+        "hdl": hdl_c,
+        "triglycerides": tg,
     }
 
 
 def calculate_martin_hopkins(total_cholesterol: float, hdl: float, triglycerides: float) -> Dict[str, Any]:
+    """Compatibility endpoint; never misrepresent the old TG-only shortcut as Martin/Hopkins.
+
+    The validated equation needs a licensed 180-cell TG/non-HDL lookup table.
     """
-    Calculate LDL using the Martin-Hopkins formula with adjustable triglyceride factor.
-
-    Uses an adjustable factor based on triglyceride level and non-HDL cholesterol
-    for more accurate results across a wider range of triglyceride levels.
-
-    Args:
-        total_cholesterol: Total cholesterol in mg/dL
-        hdl: HDL cholesterol in mg/dL
-        triglycerides: Triglycerides in mg/dL
-
-    Returns:
-        Dictionary with LDL result and metadata
-    """
-    if triglycerides < 0 or total_cholesterol < 0 or hdl < 0:
-        raise ValueError("Cholesterol and triglyceride values must be non-negative")
-
-    non_hdl = total_cholesterol - hdl
-
-    # Martin-Hopkins adjustable factor table (simplified)
-    # Based on the original Martin-Hopkins research
-    if triglycerides < 150:
-        adjustable_factor = 5.0
-    elif triglycerides < 200:
-        adjustable_factor = 4.5
-    elif triglycerides < 300:
-        adjustable_factor = 4.0
-    elif triglycerides < 400:
-        adjustable_factor = 3.5
-    else:
-        adjustable_factor = 3.0  # Extended range for Martin-Hopkins
-
-    ldl = total_cholesterol - hdl - (triglycerides / adjustable_factor)
-    ldl = round(max(ldl, 0.0), 2)
-
+    tc, hdl_c, tg = _validate_lipids(total_cholesterol, hdl, triglycerides)
     return {
-        "ldl": ldl,
+        "ldl": None,
         "formula": "Martin-Hopkins",
-        "valid": True,
-        "reason": None,
-        "adjustable_factor": adjustable_factor,
-        "total_cholesterol": total_cholesterol,
-        "hdl": hdl,
-        "triglycerides": triglycerides,
+        "valid": False,
+        "reason": "Martin-Hopkins requires the validated 180-cell triglyceride/non-HDL "
+                  "factor table, which is not included. Use Sampson-NIH instead.",
+        "total_cholesterol": tc,
+        "hdl": hdl_c,
+        "triglycerides": tg,
+    }
+
+
+def calculate_sampson(total_cholesterol: float, hdl: float, triglycerides: float) -> Dict[str, Any]:
+    """Calculate LDL-C using the published Sampson/NIH 2020 equation (mg/dL).
+
+    Original validation includes triglycerides below 800 mg/dL. Calculated
+    negative LDL-C is invalid, rather than silently clamped to zero.
+    """
+    tc, hdl_c, tg = _validate_lipids(total_cholesterol, hdl, triglycerides)
+    non_hdl = tc - hdl_c
+    raw = tc / 0.948 - hdl_c / 0.971 - (
+        tg / 8.56 + tg * non_hdl / 2140.0 - tg ** 2 / 16100.0
+    ) - 9.44
+    if tg >= 800:
+        reason = "Triglycerides at or above 800 mg/dL: Sampson-NIH is outside its validated range"
+    elif raw < 0:
+        reason = "The equation produces a negative LDL-C estimate; do not report as zero"
+    else:
+        reason = None
+    return {
+        "ldl": round(raw, 2) if reason is None else None,
+        "formula": "Sampson-NIH",
+        "valid": reason is None,
+        "reason": reason,
+        "non_hdl": round(non_hdl, 2),
+        "total_cholesterol": tc,
+        "hdl": hdl_c,
+        "triglycerides": tg,
     }
 
 
@@ -116,7 +119,7 @@ def calculate_ldl(total_cholesterol: float, hdl: float, triglycerides: float,
         total_cholesterol: Total cholesterol in mg/dL
         hdl: HDL cholesterol in mg/dL
         triglycerides: Triglycerides in mg/dL
-        method: "friedewald" or "martin-hopkins"
+        method: "friedewald", "sampson", or "martin-hopkins" (unavailable)
 
     Returns:
         Dictionary with LDL result and metadata
@@ -126,8 +129,10 @@ def calculate_ldl(total_cholesterol: float, hdl: float, triglycerides: float,
         return calculate_friedewald(total_cholesterol, hdl, triglycerides)
     elif method_lower in ("martin-hopkins", "martinhopkins", "martin_hopkins"):
         return calculate_martin_hopkins(total_cholesterol, hdl, triglycerides)
+    elif method_lower in ("sampson", "sampson-nih", "nih"):
+        return calculate_sampson(total_cholesterol, hdl, triglycerides)
     else:
-        raise ValueError(f"Unknown method: {method}. Use 'friedewald' or 'martin-hopkins'")
+        raise ValueError(f"Unknown method: {method}. Use 'friedewald', 'sampson', or 'martin-hopkins'")
 
 
 # --- Legacy compatibility ---
@@ -281,7 +286,7 @@ def assess_row(row: Dict[str, Any]) -> Dict[str, Any]:
         # Fallback to generic score
         return calculate_score(**row)
 
-    except (ValueError, TypeError) as e:
+    except (ValueError, TypeError, OverflowError) as e:
         return {"error": str(e)}
 
 
@@ -315,16 +320,19 @@ def calculate_meld_na(bilirubin: Any, creatinine: Any, inr: Any = None,
     else:
         creat = min(max(creat, 1.0), 4.0)
 
-    meld = (0.957 * math.log(creatinine) + 0.378 * math.log(bili) +
+    meld = (0.957 * math.log(creat) + 0.378 * math.log(bili) +
             1.120 * math.log(inr_val) + 0.643)
 
-    # MELD-Na adjustment
+    # MELD is conventionally on a 6-40 point scale before sodium correction.
+    meld *= 10
+
+    # Historical MELD-Na adjustment (not MELD 3.0)
     if sodium is not None:
         na = _safe_float(sodium, "sodium", 80, 180)
         na = min(max(na, 125), 137)
         meld = meld + 1.32 * (137 - na) - (0.033 * meld * (137 - na))
 
-    meld = round(meld * 10) / 10
+    meld = round(meld, 1)
     meld = min(max(meld, 6), 40)
 
     return {
@@ -528,11 +536,8 @@ def process_csv(inp: str, out: str) -> List[Dict[str, Any]]:
         merged = {**row, **{k: str(v) for k, v in res.items()}}
         results.append(merged)
 
-    # union fieldnames
-    all_keys = set()
-    for rr in results:
-        all_keys.update(rr.keys())
-    # keep original first
+    # Preserve deterministic column ordering; report errors as explicit columns.
+    all_keys = dict.fromkeys(k for rr in results for k in rr)
     extra = [k for k in all_keys if k not in fieldnames]
 
     with open(out_path, "w", newline="", encoding="utf-8") as f:
@@ -555,7 +560,7 @@ def build_parser():
     s.add_argument("--total-cholesterol", type=float, help="Total cholesterol in mg/dL")
     s.add_argument("--hdl", type=float, help="HDL cholesterol in mg/dL")
     s.add_argument("--triglycerides", type=float, help="Triglycerides in mg/dL")
-    s.add_argument("--method", choices=["friedewald", "martin-hopkins"], default="friedewald",
+    s.add_argument("--method", choices=["friedewald", "sampson", "martin-hopkins"], default="friedewald",
                    help="Calculation method (default: friedewald)")
     s.add_argument("--bili", type=float)
     s.add_argument("--creat", type=float)
