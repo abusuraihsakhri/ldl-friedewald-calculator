@@ -41,7 +41,9 @@ test("HTML references local engine, and no fake audit console", () => {
 
 test("inline browser interaction code parses without syntax errors", () => {
   const html=fs.readFileSync(path.join(__dirname,"index.html"),"utf8");
-  const scripts=[...html.matchAll(/<script(?:\\s[^>]*)?>([\\s\\S]*?)<\\/script>/g)];
-  assert.equal(scripts.length,1);
-  new vm.Script(scripts[0][1], { filename:"web/index.html inline script" });
+  const parts=html.split("<script>");
+  assert.equal(parts.length,2);
+  const code=parts[1].split("</script>")[0];
+  new vm.Script(code, { filename:"web/index.html inline script" });
+});
 });
